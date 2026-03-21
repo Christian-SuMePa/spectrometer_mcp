@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from spectrometer_mcp.core import (
+    CsvFileNotFoundError,
     DatabaseNotFoundError,
     FilenameNotFoundError,
     SpectrumSourceMissingError,
@@ -12,6 +13,7 @@ from spectrometer_mcp.core import (
     UnknownHolderError,
     acquire_1d_spectrum_file,
     get_parameter_data,
+    read_csv_file_data,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -80,3 +82,17 @@ def test_get_parameter_returns_expected_fields(db_dir: Path) -> None:
 def test_get_parameter_rejects_unknown_filename(db_dir: Path) -> None:
     with pytest.raises(FilenameNotFoundError, match="Filename not found in db.csv"):
         get_parameter_data("/tmp/results/missing.csv", db_dir / "db.csv")
+
+
+def test_read_csv_file_returns_rows(db_dir: Path) -> None:
+    result = read_csv_file_data(str(db_dir / "sample1.csv"))
+
+    assert result == [
+        {"ppm": "10.5", "intensity": "1.0"},
+        {"ppm": "10.4", "intensity": "0.8"},
+    ]
+
+
+def test_read_csv_file_requires_existing_path(tmp_path: Path) -> None:
+    with pytest.raises(CsvFileNotFoundError, match="CSV file not found"):
+        read_csv_file_data(str(tmp_path / "missing.csv"))

@@ -24,7 +24,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - fallback for test envir
                 "The 'mcp' package is required to run the server. Install the project dependencies first."
             ) from self._missing_dependency
 
-from .core import acquire_1d_spectrum_file, get_parameter_data
+from .core import acquire_1d_spectrum_file, get_parameter_data, read_csv_file_data
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DEFAULT_DB_PATH = PACKAGE_ROOT.parent.parent / "db.csv"
@@ -45,6 +45,13 @@ def get_parameter(filename: str) -> dict:
     """Return startPPM, endPPM and nPoints for a filename"""
 
     return get_parameter_data(filename=filename, db_path=DB_PATH)
+
+
+@mcp.tool()
+def read_csv_file(filepath: str) -> list[dict[str, str]]:
+    """Read a CSV file from a provided path and return its rows"""
+
+    return read_csv_file_data(filepath=filepath)
 
 
 if __name__ == "__main__":

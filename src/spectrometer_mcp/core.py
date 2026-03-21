@@ -32,6 +32,10 @@ class TargetDirectoryNotFoundError(SpectrometerDataError):
     """Raised when the destination directory does not exist."""
 
 
+class CsvFileNotFoundError(SpectrometerDataError):
+    """Raised when a requested CSV file does not exist."""
+
+
 def _load_db_rows(db_path: Path) -> list[dict[str, str]]:
     if not db_path.is_file():
         raise DatabaseNotFoundError(f"db.csv not found: {db_path}")
@@ -78,6 +82,15 @@ def get_parameter_data(filename: str, db_path: Path) -> dict[str, Any]:
         "endPPM": _parse_numeric_value(row.get("endPPM"), "endPPM", basename),
         "nPoints": _parse_numeric_value(row.get("nPoints"), "nPoints", basename, as_int=True),
     }
+
+
+def read_csv_file_data(filepath: str) -> list[dict[str, str]]:
+    csv_path = Path(filepath)
+    if not csv_path.is_file():
+        raise CsvFileNotFoundError(f"CSV file not found: {csv_path}")
+
+    with csv_path.open("r", encoding="utf-8", newline="") as handle:
+        return list(DictReader(handle))
 
 
 def _parse_numeric_value(raw_value: str | None, field: str, filename: str, *, as_int: bool = False) -> int | float:
