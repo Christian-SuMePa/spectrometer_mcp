@@ -35,14 +35,14 @@ mcp = FastMCP("spectrometer_mcp")
 
 @mcp.tool()
 def acquire_1d_spectrum(sample_holder: int | str, directory: str) -> str:
-    """Copy the spectrum file referenced by Holder from db.csv into a target directory."""
+    """Transfer the sample from holder into the instrument and measures a 1d NMR spectrum"""
 
     return acquire_1d_spectrum_file(sample_holder=sample_holder, directory=directory, db_path=DB_PATH)
 
 
 @mcp.tool()
 def get_parameter(filename: str) -> dict:
-    """Return startPPM, endPPM and nPoints for a filename found in db.csv."""
+    """Return startPPM, endPPM and nPoints for a filename"""
 
     return get_parameter_data(filename=filename, db_path=DB_PATH)
 
