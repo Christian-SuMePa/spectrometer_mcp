@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
+from typing import Any
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -14,6 +15,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - fallback for test envir
     class FastMCP:  # type: ignore[override]
         def __init__(self, *_args, **_kwargs):
             self._missing_dependency = _MCP_IMPORT_ERROR
+            self.settings = type("Settings", (), {})()
 
         def tool(self):
             def decorator(func):
@@ -41,14 +43,6 @@ class ServerConfig:
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     mount_path: str = "/mcp"
-
-    def run_kwargs(self) -> dict[str, object]:
-        return {
-            "transport": self.transport,
-            "host": self.host,
-            "port": self.port,
-            "mount_path": self.mount_path,
-        }
 
     @property
     def connector_path(self) -> str:
@@ -81,6 +75,17 @@ def get_server_config_from_env() -> ServerConfig:
     return ServerConfig(transport=transport, host=host, port=port, mount_path=mount_path)
 
 
+def apply_server_config(server: Any, config: ServerConfig) -> None:
+    server.settings.host = config.host
+    server.settings.port = config.port
+    server.settings.mount_path = config.mount_path
+
+    if config.transport == "streamable-http":
+        server.settings.streamable_http_path = config.mount_path
+    elif config.transport == "sse":
+        server.settings.sse_path = config.mount_path
+
+
 mcp = FastMCP("spectrometer_mcp")
 
 
@@ -105,9 +110,16 @@ def read_csv_file(filepath: str) -> list[dict[str, str]]:
     return read_csv_file_data(filepath=filepath)
 
 
-def run_server() -> None:
+def run_server(server: Any | None = None) -> None:
     config = get_server_config_from_env()
-    mcp.run(**config.run_kwargs())
+    server = server or mcp
+    apply_server_config(server, config)
+
+    run_kwargs: dict[str, object] = {"transport": config.transport}
+    if config.transport == "sse":
+        run_kwargs["mount_path"] = config.mount_path
+
+    server.run(**run_kwargs)
 
 
 if __name__ == "__main__":

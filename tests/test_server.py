@@ -1,10 +1,28 @@
 from __future__ import annotations
 
-import os
-
 import pytest
 
-from spectrometer_mcp.server import DEFAULT_HOST, DEFAULT_PORT, ServerConfig, get_server_config_from_env
+from spectrometer_mcp.server import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    ServerConfig,
+    apply_server_config,
+    get_server_config_from_env,
+    run_server,
+)
+
+
+class DummySettings:
+    pass
+
+
+class DummyServer:
+    def __init__(self) -> None:
+        self.settings = DummySettings()
+        self.run_calls: list[dict[str, object]] = []
+
+    def run(self, **kwargs: object) -> None:
+        self.run_calls.append(kwargs)
 
 
 @pytest.fixture(autouse=True)
@@ -60,3 +78,44 @@ def test_server_config_rejects_invalid_port(monkeypatch: pytest.MonkeyPatch) -> 
 
     with pytest.raises(ValueError, match="MCP_PORT"):
         get_server_config_from_env()
+
+
+def test_apply_server_config_sets_streamable_http_settings() -> None:
+    server = DummyServer()
+    config = ServerConfig(transport="streamable-http", host="127.0.0.1", port=9000, mount_path="/mcp")
+
+    apply_server_config(server, config)
+
+    assert server.settings.host == "127.0.0.1"
+    assert server.settings.port == 9000
+    assert server.settings.mount_path == "/mcp"
+    assert server.settings.streamable_http_path == "/mcp"
+
+
+def test_apply_server_config_sets_sse_settings() -> None:
+    server = DummyServer()
+    config = ServerConfig(transport="sse", host="127.0.0.1", port=9000, mount_path="/sse")
+
+    apply_server_config(server, config)
+
+    assert server.settings.host == "127.0.0.1"
+    assert server.settings.port == 9000
+    assert server.settings.mount_path == "/sse"
+    assert server.settings.sse_path == "/sse"
+
+
+def test_run_server_uses_transport_only_for_streamable_http() -> None:
+    server = DummyServer()
+
+    run_server(server)
+
+    assert server.run_calls == [{"transport": "streamable-http"}]
+
+
+def test_run_server_passes_mount_path_for_sse(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MCP_TRANSPORT", "sse")
+    server = DummyServer()
+
+    run_server(server)
+
+    assert server.run_calls == [{"transport": "sse", "mount_path": "/sse"}]

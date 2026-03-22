@@ -16,8 +16,20 @@ ChatGPT unterstützt für eigene MCP-Apps nur **Remote-MCP-Server** über **stre
 
 ### Empfohlener Start: streaming HTTP
 
+#### Linux / macOS
+
 ```bash
 MCP_TRANSPORT=streamable-http MCP_HOST=0.0.0.0 MCP_PORT=8000 MCP_MOUNT_PATH=/mcp python server.py
+```
+
+#### Windows cmd.exe
+
+```bat
+set MCP_TRANSPORT=streamable-http
+set MCP_HOST=0.0.0.0
+set MCP_PORT=8000
+set MCP_MOUNT_PATH=/mcp
+py server.py
 ```
 
 Dann ist der Connector typischerweise unter dieser URL erreichbar:
@@ -28,8 +40,20 @@ https://<deine-domain>/mcp/
 
 ### Alternative: SSE
 
+#### Linux / macOS
+
 ```bash
 MCP_TRANSPORT=sse MCP_HOST=0.0.0.0 MCP_PORT=8000 MCP_MOUNT_PATH=/sse python server.py
+```
+
+#### Windows cmd.exe
+
+```bat
+set MCP_TRANSPORT=sse
+set MCP_HOST=0.0.0.0
+set MCP_PORT=8000
+set MCP_MOUNT_PATH=/sse
+py server.py
 ```
 
 Dann ist der Connector typischerweise unter dieser URL erreichbar:
