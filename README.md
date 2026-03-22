@@ -10,19 +10,49 @@ source .venv/bin/activate
 pip install -e .[test]
 ```
 
-## Server starten
+## Remote-Server für ChatGPT starten
 
-Standardmäßig wird `db.csv` im Repository-Root verwendet. Optional kann über `SPECTROMETER_DB_PATH` ein anderer Pfad gesetzt werden.
+ChatGPT unterstützt für eigene MCP-Apps nur **Remote-MCP-Server** über **streaming HTTP** oder **SSE**. Deshalb ist der Server jetzt so konfigurierbar, dass er remote erreichbar gestartet werden kann.
 
-```bash
-python server.py
-```
-
-oder
+### Empfohlener Start: streaming HTTP
 
 ```bash
-python -m spectrometer_mcp.server
+MCP_TRANSPORT=streamable-http MCP_HOST=0.0.0.0 MCP_PORT=8000 MCP_MOUNT_PATH=/mcp python server.py
 ```
+
+Dann ist der Connector typischerweise unter dieser URL erreichbar:
+
+```text
+https://<deine-domain>/mcp/
+```
+
+### Alternative: SSE
+
+```bash
+MCP_TRANSPORT=sse MCP_HOST=0.0.0.0 MCP_PORT=8000 MCP_MOUNT_PATH=/sse python server.py
+```
+
+Dann ist der Connector typischerweise unter dieser URL erreichbar:
+
+```text
+https://<deine-domain>/sse/
+```
+
+### Relevante Umgebungsvariablen
+
+- `MCP_TRANSPORT`: `streamable-http` oder `sse`
+- `MCP_HOST`: Netzwerk-Host, Standard `0.0.0.0`
+- `MCP_PORT`: Netzwerk-Port, Standard `8000`
+- `MCP_MOUNT_PATH`: HTTP-Pfad, Standard `/mcp` für streaming HTTP und `/sse` für SSE
+- `SPECTROMETER_DB_PATH`: optionaler Pfad zu einer alternativen `db.csv`
+
+## In ChatGPT verbinden
+
+1. Stelle den Server unter einer öffentlich erreichbaren HTTPS-URL bereit.
+2. Öffne in ChatGPT `Settings -> Apps -> Advanced settings -> Developer mode`.
+3. Erstelle dort eine neue App für deinen Remote-MCP-Server.
+4. Hinterlege als Server-URL z. B. `https://<deine-domain>/mcp/` oder `https://<deine-domain>/sse/`.
+5. Aktiviere die App in einer Unterhaltung im Developer-Mode.
 
 ## MCP-Tools
 
@@ -35,7 +65,7 @@ python -m spectrometer_mcp.server
 Wenn der MCP-Server in ChatGPT verbunden ist, kannst du ChatGPT zum Beispiel so auffordern, die Datei über das MCP-Tool zu lesen:
 
 ```text
-Rufe das MCP-Tool `read_csv_file` mit `filepath="/workspace/spectrometer_mcp/sample1.csv"` auf und zeige mir den Inhalt der CSV-Datei.
+Nutze meine spectrometer_mcp App und rufe das Tool `read_csv_file` mit `filepath="/workspace/spectrometer_mcp/sample1.csv"` auf. Zeige mir danach den Inhalt der CSV-Datei.
 ```
 
 Du übergibst der Funktion also einfach den vollständigen Pfad zur CSV-Datei. Das Tool liest die Datei und gibt die Zeilen als strukturierte Liste von Dictionaries zurück.

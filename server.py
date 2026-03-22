@@ -1,4 +1,4 @@
-from spectrometer_mcp.server import mcp
+from spectrometer_mcp.server import run_server
 
 if __name__ == "__main__":
-    mcp.run()
+    run_server()
