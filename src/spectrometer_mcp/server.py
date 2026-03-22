@@ -16,6 +16,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - fallback for test envir
         def __init__(self, *_args, **_kwargs):
             self._missing_dependency = _MCP_IMPORT_ERROR
             self.settings = type("Settings", (), {})()
+            self._init_kwargs = _kwargs
 
         def tool(self):
             def decorator(func):
@@ -35,6 +36,7 @@ DB_PATH = Path(os.environ.get("SPECTROMETER_DB_PATH", DEFAULT_DB_PATH))
 DEFAULT_TRANSPORT = "streamable-http"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
+SERVER_NAME = "spectrometer_mcp"
 
 
 @dataclass(frozen=True)
@@ -75,6 +77,56 @@ def get_server_config_from_env() -> ServerConfig:
     return ServerConfig(transport=transport, host=host, port=port, mount_path=mount_path)
 
 
+def _fastmcp_init_kwargs(config: ServerConfig) -> dict[str, object]:
+    kwargs: dict[str, object] = {
+        "host": config.host,
+        "port": config.port,
+        "mount_path": config.mount_path,
+    }
+    if config.transport == "streamable-http":
+        kwargs["streamable_http_path"] = config.mount_path
+    elif config.transport == "sse":
+        kwargs["sse_path"] = config.mount_path
+    return kwargs
+
+
+def register_tools(server: Any) -> Any:
+    server.tool()(acquire_1d_spectrum)
+    server.tool()(get_parameter)
+    server.tool()(read_csv_file)
+    return server
+
+
+mcp = None
+
+
+@mcp.tool() if mcp else (lambda func: func)
+def acquire_1d_spectrum(sample_holder: int | str, directory: str) -> str:
+    """Transfer the sample from holder into the instrument and measures a 1d NMR spectrum"""
+
+    return acquire_1d_spectrum_file(sample_holder=sample_holder, directory=directory, db_path=DB_PATH)
+
+
+@mcp.tool() if mcp else (lambda func: func)
+def get_parameter(filename: str) -> dict:
+    """Return startPPM, endPPM and nPoints for a filename"""
+
+    return get_parameter_data(filename=filename, db_path=DB_PATH)
+
+
+@mcp.tool() if mcp else (lambda func: func)
+def read_csv_file(filepath: str) -> list[dict[str, str]]:
+    """Read a CSV file from a provided path and return its rows"""
+
+    return read_csv_file_data(filepath=filepath)
+
+
+def create_mcp_server(config: ServerConfig | None = None) -> Any:
+    config = config or get_server_config_from_env()
+    server = FastMCP(SERVER_NAME, **_fastmcp_init_kwargs(config))
+    return register_tools(server)
+
+
 def apply_server_config(server: Any, config: ServerConfig) -> None:
     server.settings.host = config.host
     server.settings.port = config.port
@@ -86,33 +138,9 @@ def apply_server_config(server: Any, config: ServerConfig) -> None:
         server.settings.sse_path = config.mount_path
 
 
-mcp = FastMCP("spectrometer_mcp")
-
-
-@mcp.tool()
-def acquire_1d_spectrum(sample_holder: int | str, directory: str) -> str:
-    """Transfer the sample from holder into the instrument and measures a 1d NMR spectrum"""
-
-    return acquire_1d_spectrum_file(sample_holder=sample_holder, directory=directory, db_path=DB_PATH)
-
-
-@mcp.tool()
-def get_parameter(filename: str) -> dict:
-    """Return startPPM, endPPM and nPoints for a filename"""
-
-    return get_parameter_data(filename=filename, db_path=DB_PATH)
-
-
-@mcp.tool()
-def read_csv_file(filepath: str) -> list[dict[str, str]]:
-    """Read a CSV file from a provided path and return its rows"""
-
-    return read_csv_file_data(filepath=filepath)
-
-
 def run_server(server: Any | None = None) -> None:
     config = get_server_config_from_env()
-    server = server or mcp
+    server = create_mcp_server(config) if server is None else server
     apply_server_config(server, config)
 
     run_kwargs: dict[str, object] = {"transport": config.transport}
@@ -120,6 +148,9 @@ def run_server(server: Any | None = None) -> None:
         run_kwargs["mount_path"] = config.mount_path
 
     server.run(**run_kwargs)
+
+
+mcp = create_mcp_server(ServerConfig())
 
 
 if __name__ == "__main__":

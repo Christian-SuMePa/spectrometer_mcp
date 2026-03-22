@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import pytest
 
+import spectrometer_mcp.server as server_module
 from spectrometer_mcp.server import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     ServerConfig,
+    _fastmcp_init_kwargs,
     apply_server_config,
+    create_mcp_server,
     get_server_config_from_env,
+    register_tools,
     run_server,
 )
 
@@ -20,6 +24,13 @@ class DummyServer:
     def __init__(self) -> None:
         self.settings = DummySettings()
         self.run_calls: list[dict[str, object]] = []
+        self.registered: list[str] = []
+
+    def tool(self):
+        def decorator(func):
+            self.registered.append(func.__name__)
+            return func
+        return decorator
 
     def run(self, **kwargs: object) -> None:
         self.run_calls.append(kwargs)
@@ -80,6 +91,40 @@ def test_server_config_rejects_invalid_port(monkeypatch: pytest.MonkeyPatch) -> 
         get_server_config_from_env()
 
 
+def test_fastmcp_init_kwargs_for_streamable_http() -> None:
+    config = ServerConfig(transport="streamable-http", host="127.0.0.1", port=9000, mount_path="/mcp")
+
+    assert _fastmcp_init_kwargs(config) == {
+        "host": "127.0.0.1",
+        "port": 9000,
+        "mount_path": "/mcp",
+        "streamable_http_path": "/mcp",
+    }
+
+
+def test_fastmcp_init_kwargs_for_sse() -> None:
+    config = ServerConfig(transport="sse", host="127.0.0.1", port=9000, mount_path="/sse")
+
+    assert _fastmcp_init_kwargs(config) == {
+        "host": "127.0.0.1",
+        "port": 9000,
+        "mount_path": "/sse",
+        "sse_path": "/sse",
+    }
+
+
+def test_register_tools_registers_all_tools() -> None:
+    server = DummyServer()
+
+    register_tools(server)
+
+    assert server.registered == [
+        "acquire_1d_spectrum",
+        "get_parameter",
+        "read_csv_file",
+    ]
+
+
 def test_apply_server_config_sets_streamable_http_settings() -> None:
     server = DummyServer()
     config = ServerConfig(transport="streamable-http", host="127.0.0.1", port=9000, mount_path="/mcp")
@@ -102,6 +147,25 @@ def test_apply_server_config_sets_sse_settings() -> None:
     assert server.settings.port == 9000
     assert server.settings.mount_path == "/sse"
     assert server.settings.sse_path == "/sse"
+
+
+def test_create_mcp_server_uses_config_in_constructor(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeFastMCP(DummyServer):
+        def __init__(self, name: str, **kwargs: object) -> None:
+            super().__init__()
+            captured["name"] = name
+            captured.update(kwargs)
+
+    monkeypatch.setattr(server_module, "FastMCP", FakeFastMCP)
+
+    create_mcp_server(ServerConfig())
+
+    assert captured["name"] == "spectrometer_mcp"
+    assert captured["host"] == DEFAULT_HOST
+    assert captured["port"] == DEFAULT_PORT
+    assert captured["streamable_http_path"] == "/mcp"
 
 
 def test_run_server_uses_transport_only_for_streamable_http() -> None:

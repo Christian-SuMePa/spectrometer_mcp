@@ -38,6 +38,24 @@ Dann ist der Connector typischerweise unter dieser URL erreichbar:
 https://<deine-domain>/mcp/
 ```
 
+> Wichtig: In ChatGPT muss die vollständige URL inklusive `/mcp/` eingetragen werden, nicht nur die Domain.
+
+### ngrok-Hinweis
+
+Falls dein Server hinter ngrok mit `Invalid Host header` antwortet, leite den Tunnel mit umgeschriebenem Host-Header weiter, damit der lokale FastMCP-Server nicht den öffentlichen ngrok-Hostnamen als fremd ablehnt.
+
+Beispiel mit ngrok:
+
+```bash
+ngrok http 8000 --host-header=rewrite
+```
+
+Danach verwendest du in ChatGPT weiterhin die ngrok-HTTPS-URL inklusive Pfad, also z. B.:
+
+```text
+https://<deine-ngrok-domain>.ngrok-free.app/mcp/
+```
+
 ### Alternative: SSE
 
 #### Linux / macOS
